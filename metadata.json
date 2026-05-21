@@ -1,0 +1,6 @@
+{
+  "name": "Gestão à Vista",
+  "description": "POC de dashboard integrado ao Google Sheets para acompanhamento de KPIs de Vendas Internas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
