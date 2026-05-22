@@ -51,12 +51,12 @@ export function Dashboard({ data, onRefresh, onClearUrl, isMock = false }: Dashb
     return parsedMetrics.find(m => keywords.some(k => m.name.toLowerCase().includes(k.toLowerCase()))) || { name: keywords[0], dayValue: '-', monthValue: '-' };
   };
 
-  const metaCarteira = getMetric(['Meta da Carteira']);
+  const metaCarteira = getMetric(['Meta Carteira', 'Meta da Carteira']);
   const realizado = getMetric(['Realizado', '%']);
   const positivacao = getMetric(['Positivação']);
   const regioesDesassistidasNum = getMetric(['Número de Regiões', 'Regiões desassistidas']);
-  const regioesDesassistidasVendas = getMetric(['Vendas nas regiões']);
-  const clientes120 = getMetric(['clientes + 120 dias', '+ 120']);
+  const regioesDesassistidasVendas = getMetric(['Faturamento', 'Vendas nas regiões']);
+  const clientes120 = getMetric(['+120', 'clientes +120', '120 dias']);
   const atendimentos = getMetric(['Número de atendimentos', 'atendimentos']);
   const nps = getMetric(['NPS']);
 
