@@ -1,44 +1,3 @@
-import https from 'https';
-import http from 'http';
-import { URL } from 'url';
-
-function httpGet(urlStr: string, redirectCount = 0): Promise<{ status: number; headers: Record<string, string>; body: Buffer }> {
-  return new Promise((resolve, reject) => {
-    if (redirectCount > 5) return reject(new Error('Muitos redirecionamentos.'));
-
-    const parsed = new URL(urlStr);
-    const lib = parsed.protocol === 'https:' ? https : http;
-
-    const req = lib.get(urlStr, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; dashboard/1.0)',
-        'Accept': 'text/csv,application/octet-stream,*/*',
-      },
-    }, (res) => {
-      // Segue redirecionamentos
-      if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-        res.resume();
-        const next = res.headers.location.startsWith('http')
-          ? res.headers.location
-          : `${parsed.origin}${res.headers.location}`;
-        return resolve(httpGet(next, redirectCount + 1));
-      }
-
-      const chunks: Buffer[] = [];
-      res.on('data', (chunk) => chunks.push(chunk));
-      res.on('end', () => resolve({
-        status: res.statusCode || 200,
-        headers: res.headers as Record<string, string>,
-        body: Buffer.concat(chunks),
-      }));
-      res.on('error', reject);
-    });
-
-    req.setTimeout(15_000, () => { req.destroy(); reject(new Error('Timeout ao buscar a planilha.')); });
-    req.on('error', reject);
-  });
-}
-
 export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -52,13 +11,22 @@ export default async function handler(req: any, res: any) {
 
   try {
     const url = decodeURIComponent(rawUrl);
-    const { status, body, headers } = await httpGet(url);
 
-    if (status >= 400) {
-      return res.status(status).json({ error: `Erro HTTP ${status} ao buscar a planilha.` });
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; dashboard/1.0)',
+        'Accept': 'text/csv,application/octet-stream,*/*',
+      },
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `Erro HTTP ${response.status} ao buscar a planilha.` });
     }
 
-    const preview = body.slice(0, 300).toString('utf-8').toLowerCase().trimStart();
+    const buffer = await response.arrayBuffer();
+    const preview = Buffer.from(buffer).slice(0, 300).toString('utf-8').toLowerCase().trimStart();
+
     if (preview.startsWith('<!doctype') || preview.startsWith('<html')) {
       return res.status(403).json({
         error:
@@ -68,9 +36,9 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const contentType = headers['content-type'] || 'application/octet-stream';
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
     res.setHeader('Content-Type', contentType);
-    res.send(body);
+    res.send(Buffer.from(buffer));
   } catch (err: any) {
     console.error('[fetch-sheet] erro:', err);
     res.status(500).json({ error: err.message || 'Erro interno no servidor.' });
